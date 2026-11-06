@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>🎓 政大國際金融學院 (CGBF) 課表與行事曆產生器（即時連線同步版）</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #2563eb;
+            --bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --success: #16a34a;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, "Microsoft JhengHei", "PingFang TC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            line-height: 1.55;
+        }
+        .hero {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+            color: #fff;
+            padding: 26px 20px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.15);
+        }
+        .hero h1 {
+            margin: 0 0 8px;
+            font-size: clamp(20px, 4vw, 27px);
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+        .hero p {
+            margin: 0 auto 14px;
+            color: #cbd5e1;
+            font-size: 14px;
+            max-width: 680px;
+        }
+        .hero-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .hero-btn {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            padding: 8px 16px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .hero-btn:hover {
+            background: rgba(255, 255, 255, 0.28);
+        }
+        .live-sync-bar {
+            max-width: 1200px;
+            margin: 16px auto 0;
+            padding: 0 16px;
+        }
+        .live-sync-card {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 13px;
+            color: #166534;
+        }
+        .live-sync-card.syncing {
+            background: #eff6ff;
+            border-color: #93c5fd;
+            color: #1e40af;
+        }
+        .live-sync-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .live-announcements {
+            margin-top: 4px;
+            padding-top: 8px;
+            border-top: 1px dashed #86efac;
+            font-size: 12.5px;
+            color: #14532d;
+            display: none;
+        }
+        .live-announcements.show {
+            display: block;
+        }
+        .import-drawer {
+            max-width: 1200px;
+            margin: 12px auto 0;
+            padding: 0 16px;
+            display: none;
+        }
+        .import-drawer.open {
+            display: block;
+        }
+        .import-box {
+            background: #fffbeb;
+            border: 2px solid #f59e0b;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.15);
+        }
+        .import-box h3 {
+            margin: 0 0 8px;
+            color: #b45309;
+            font-size: 16px;
+        }
+        .import-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 12px;
+        }
+        @media (max-width: 768px) {
+            .import-grid { grid-template-columns: 1fr; }
+        }
+        .import-box textarea {
+            width: 100%;
+            height: 110px;
+            border: 1px solid #fcd34d;
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 12px;
+            font-family: monospace;
+            background: #fff;
+        }
+        .main-wrap {
+            max-width: 1200px;
+            margin: 16px auto;
+            padding: 0 16px 48px;
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            gap: 24px;
+            align-items: start;
+        }
+        @media (max-width: 900px) {
+            .main-wrap {
+                grid-template-columns: 1fr;
+            }
+        }
+        .panel {
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05);
+            overflow: hidden;
+        }
+        .panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: #f8fafc;
+        }
+        .panel-header h2 {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            background: #fff;
+        }
+        .search-input {
+            flex: 1;
+            min-width: 150px;
+            padding: 8px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .btn-sm {
+            padding: 7px 12px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-sm:hover {
+            background: #e2e8f0;
+        }
+        .course-list {
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .course-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            background: #fff;
+        }
+        .course-card:hover {
+            border-color: #93c5fd;
+            background: #f8fafc;
+        }
+        .course-card.selected {
+            border-color: var(--primary-light);
+            background: #eff6ff;
+        }
+        .course-card input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-top: 2px;
+            accent-color: var(--primary-light);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .course-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .course-title-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+        .course-name {
+            font-weight: 700;
+            font-size: 15px;
+            color: #0f172a;
+        }
+        .badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+        }
+        .badge-req { background: #fee2e2; color: #b91c1c; }
+        .badge-grp { background: #fef3c7; color: #b45309; }
+        .badge-ele { background: #e0f2fe; color: #0369a1; }
+        .badge-cnt { background: #f1f5f9; color: #475569; }
+        .course-meta {
+            font-size: 13px;
+            color: var(--muted);
+        }
+        .action-bar {
+            padding: 16px 20px;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .btn-primary {
+            flex: 1;
+            min-width: 180px;
+            background: linear-gradient(135deg, #16a34a, #15803d);
+            color: #fff;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+            transition: transform 0.15s, opacity 0.15s;
+        }
+        .btn-primary:hover { transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-qr {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            color: #fff;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
+            transition: transform 0.15s, opacity 0.15s;
+        }
+        .btn-qr:hover { transform: translateY(-1px); }
+        .btn-qr:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-secondary {
+            background: var(--primary-light);
+            color: #fff;
+            border: none;
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .qr-section {
+            background: #f5f3ff;
+            border-bottom: 1px solid #ddd6fe;
+            padding: 18px 20px;
+            display: none;
+        }
+        .qr-section.open {
+            display: block;
+        }
+        .qr-flex {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+        .qr-box {
+            background: #fff;
+            padding: 12px;
+            border-radius: 12px;
+            border: 2px solid #c4b5fd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 188px;
+            min-height: 188px;
+            box-shadow: 0 4px 12px rgba(109, 40, 217, 0.08);
+        }
+        .qr-info {
+            flex: 1;
+            min-width: 220px;
+        }
+        .qr-info h3 {
+            margin: 0 0 6px;
+            font-size: 15px;
+            color: #5b21b6;
+        }
+        .qr-info p {
+            margin: 4px 0;
+            font-size: 13px;
+            color: #4c1d95;
+        }
+        .stats-bar {
+            padding: 10px 20px;
+            background: #eff6ff;
+            color: #1e40af;
+            font-size: 13px;
+            font-weight: 600;
+            border-bottom: 1px solid #bfdbfe;
+            display: flex;
+            justify-content: space-between;
+        }
+        .preview-box {
+            padding: 20px;
+        }
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: "Cascadia Mono", Consolas, "Microsoft JhengHei", monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #1e293b;
+        }
+        .empty-hint {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+
+<header class="hero">
+    <h1>🎓 國立政治大學國際金融學院 (CGBF) 課表與行事曆產生器</h1>
+    <p>每次開啟網頁皆自動連線選課系統確認最新課程日期與停課異動，勾選後一鍵匯出 <code>.ics</code> 或掃描 QR Code 加入手機行事曆</p>
+    <div class="hero-actions">
+        <button type="button" class="hero-btn" id="btn-live-sync">
+            🔄 立即重新連線選課系統確認課表
+        </button>
+        <button type="button" class="hero-btn" id="btn-toggle-import">
+            📋 手動貼上新學期完整課程資料
+        </button>
+    </div>
+</header>
+
+<!-- 每次開啟自動連線選課系統確認狀態列 -->
+<div class="live-sync-bar">
+    <div class="live-sync-card syncing" id="live-sync-card">
+        <div class="live-sync-top">
+            <span id="live-sync-text">🔄 正在自動連線至政大國金選課系統（selectcourse.cgbf.nccu.edu.tw）確認最新課表與停課異動...</span>
+            <button type="button" class="btn-sm" id="btn-toggle-ann" style="display:none;padding:4px 10px;font-size:12px;">📢 查看即時異動公告</button>
+        </div>
+        <div class="live-announcements" id="live-announcements"></div>
+    </div>
+</div>
+
+<!-- 跨學期通用匯入面板 -->
+<div class="import-drawer" id="import-drawer">
+    <div class="import-box">
+        <h3>✨ 跨學期通用更新功能（不需改程式碼，任何新學期皆可使用）</h3>
+        <p style="margin:0;font-size:13px;color:#78350f;">
+            當下學期（例如 115-2、116-1）開出新課程時，您只需要登入 <a href="https://selectcourse.cgbf.nccu.edu.tw/courses" target="_blank" style="color:#b45309;font-weight:700;">選課系統</a>，把畫面全選複製（<code>Ctrl+A</code> -&gt; <code>Ctrl+C</code>）或按右鍵「檢視網頁原始碼」貼到下方，網頁就會自動解析出新學期的所有課程與時間！
+        </p>
+        <div class="import-grid">
+            <div>
+                <label style="font-size:13px;font-weight:700;color:#92400e;">① 貼上「課程資料 (/courses)」網頁內容或 HTML（更新全院課程清單與時間）：</label>
+                <textarea id="paste-courses" placeholder="在選課系統「課程資料 (/courses)」頁面按 Ctrl+A 全選複製（或貼上網頁原始碼 HTML）於此..."></textarea>
+            </div>
+            <div>
+                <label style="font-size:13px;font-weight:700;color:#92400e;">② 選填：貼上「我的課程 (/enrollments)」內容（自動幫您打勾這學期選的課）：</label>
+                <textarea id="paste-enrollments" placeholder="在選課系統「我的課程 (/enrollments)」頁面按 Ctrl+A 全選複製（或貼上 HTML）於此..."></textarea>
+            </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <button type="button" class="btn-secondary" id="btn-parse-custom" style="background:#d97706;padding:9px 18px;">
+                🚀 立即解析並載入新學期課程
+            </button>
+            <button type="button" class="btn-sm" id="btn-reset-default">
+                還原內建 115-1 預設資料
+            </button>
+            <span id="import-status" style="font-size:13px;font-weight:600;color:#15803d;"></span>
+        </div>
+    </div>
+</div>
+
+<main class="main-wrap">
+    <!-- 左側：課程勾選區 -->
+    <section class="panel">
+        <div class="panel-header">
+            <h2>📚 1. 勾選您修習的課程</h2>
+            <span id="course-total-badge" style="font-size:12px;color:#64748b;">共 22 門課</span>
+        </div>
+        <div class="toolbar">
+            <input type="text" id="search-input" class="search-input" placeholder="🔍 搜尋課程名稱、教師或代碼...">
+            <button type="button" class="btn-sm" id="btn-preset-my">⭐ 載入我的預設課表</button>
+            <button type="button" class="btn-sm" id="btn-clear">清除重選</button>
+        </div>
+        <div class="course-list" id="course-list">
+            <label class="course-card selected">
+                <input type="checkbox" value="ZB1001001" checked>
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-req">必修 · 3學分</span>
+                        <span class="course-name">國際金融情勢分析與展望</span>
+                        <span class="badge badge-cnt">15 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1001001 ｜ 授課教師：蘇建榮</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1007001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-grp">群修 · 3學分</span>
+                        <span class="course-name">金融產學專題實作課程</span>
+                        <span class="badge badge-cnt">14 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1007001 ｜ 授課教師：許永明</div>
+                </div>
+            </label>
+            <label class="course-card selected">
+                <input type="checkbox" value="ZB1880001" checked>
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 1學分</span>
+                        <span class="course-name">國際銀行監管與法規基礎</span>
+                        <span class="badge badge-cnt">5 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1880001 ｜ 授課教師：Walter Yao、饒永華</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1881001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">開放總體經濟分析</span>
+                        <span class="badge badge-cnt">9 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1881001 ｜ 授課教師：Alicia G. Herrero</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1882001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">家族企業治理</span>
+                        <span class="badge badge-cnt">9 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1882001 ｜ 授課教師：范博宏</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1883001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">國際政治經濟情勢分析</span>
+                        <span class="badge badge-cnt">10 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1883001 ｜ 授課教師：Ketty W. Chen</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1886001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">海外研習（倫敦LSE）</span>
+                        <span class="badge badge-cnt">11 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1886001 ｜ 授課教師：蘇建榮</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1887001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">海外研習（倫敦Imperial）</span>
+                        <span class="badge badge-cnt">11 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1887001 ｜ 授課教師：許永明</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1898001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">海外研習（新加坡）</span>
+                        <span class="badge badge-cnt">9 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1898001 ｜ 授課教師：許永明、蘇建榮</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1904001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">另類投資與私募市場導論</span>
+                        <span class="badge badge-cnt">10 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1904001 ｜ 授課教師：林敬倫</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1905001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 1學分</span>
+                        <span class="course-name">數位化與金融業的未來</span>
+                        <span class="badge badge-cnt">5 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1905001 ｜ 授課教師：Thomas Puschmann</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1906001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">資產管理與租稅規劃</span>
+                        <span class="badge badge-cnt">10 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1906001 ｜ 授課教師：蘇建榮、陳明進</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1914011">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">永續金融與風險管理</span>
+                        <span class="badge badge-cnt">10 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1914011 ｜ 授課教師：吳中書</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1917001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">向世界金融典範學習</span>
+                        <span class="badge badge-cnt">10 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1917001 ｜ 授課教師：Alan Hellawell、尚孝純</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1918001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">ESG責任投資與資產配置</span>
+                        <span class="badge badge-cnt">10 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1918001 ｜ 授課教師：陳鴻毅、陳嬿如</div>
+                </div>
+            </label>
+            <label class="course-card selected">
+                <input type="checkbox" value="ZB1919001" checked>
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">固定收益證券與信用市場</span>
+                        <span class="badge badge-cnt">10 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1919001 ｜ 授課教師：張明恩</div>
+                </div>
+            </label>
+            <label class="course-card selected">
+                <input type="checkbox" value="ZB1930001" checked>
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">國際金融理論與實務</span>
+                        <span class="badge badge-cnt">10 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1930001 ｜ 授課教師：張元晨</div>
+                </div>
+            </label>
+            <label class="course-card selected">
+                <input type="checkbox" value="ZB1931001" checked>
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">領導力評鑑與發展</span>
+                        <span class="badge badge-cnt">5 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1931001 ｜ 授課教師：蔡維奇</div>
+                </div>
+            </label>
+            <label class="course-card selected">
+                <input type="checkbox" value="ZB1932001" checked>
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 0學分</span>
+                        <span class="course-name">商用英文</span>
+                        <span class="badge badge-cnt">10 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1932001 ｜ 授課教師：林翰儀</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1941001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 2學分</span>
+                        <span class="course-name">金融機構經營決策分析與管理</span>
+                        <span class="badge badge-cnt">10 堂</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1941001 ｜ 授課教師：呂桔誠、林士貴</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1005001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 3學分</span>
+                        <span class="course-name">金融與產業實務課程（一）</span>
+                        <span class="badge badge-cnt">無固定時間</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1005001 ｜ 授課教師：許永明</div>
+                </div>
+            </label>
+            <label class="course-card">
+                <input type="checkbox" value="ZB1006001">
+                <div class="course-info">
+                    <div class="course-title-row">
+                        <span class="badge badge-ele">選修 · 3學分</span>
+                        <span class="course-name">金融與產業實務課程（二）</span>
+                        <span class="badge badge-cnt">無固定時間</span>
+                    </div>
+                    <div class="course-meta">代碼：ZB1006001 ｜ 授課教師：許永明</div>
+                </div>
+            </label>
+        </div>
+    </section>
+
+    <!-- 右側：即時預覽與匯出區 -->
+    <section class="panel">
+        <div class="panel-header">
+            <h2>🗓️ 2. 您的個人上課時間表 &amp; 行事曆匯出</h2>
+        </div>
+        <div class="stats-bar" id="stats-bar">
+            <span>已選課程：6 門（10 學分）</span>
+            <span>總上課堂數：55 堂</span>
+        </div>
+        <div class="action-bar">
+            <button type="button" class="btn-primary" id="btn-download-ics">
+                📅 下載 .ics 行事曆檔
+            </button>
+            <button type="button" class="btn-qr" id="btn-toggle-qr">
+                📱 手機 QR Code 掃描匯入
+            </button>
+            <button type="button" class="btn-secondary" id="btn-copy-text">
+                📋 複製時間表
+            </button>
+        </div>
+        <!-- 手機掃描專用 QR Code 區塊（預設直接展開方便掃描） -->
+        <div class="qr-section open" id="qr-section">
+            <div class="qr-flex">
+                <div class="qr-box" id="qr-box"></div>
+                <div class="qr-info">
+                    <h3>📱 手機相機一掃，立即加入行事曆！</h3>
+                    <p>• <strong>iPhone (iOS)</strong>：打開手機「相機」對準左方 QR Code 掃描 ➔ 點開上方通知連結 ➔ 點擊「<strong>加入全部 (Add All)</strong>」即完成！</p>
+                    <p>• <strong>Android</strong>：掃描後自動下載 <code>.ics</code> 檔 ➔ 點擊開啟檔案並選擇「Google 日曆」即可匯入！</p>
+                    <p style="margin-top:8px;font-size:12px;color:#6d28d9;">💡 左側勾選或取消課程時，此 QR Code 會自動即時更新！</p>
+                </div>
+            </div>
+        </div>
+        <div class="preview-box" id="preview-box">
+            <div class="empty-hint">👈 請先在左側勾選您這學期修習的課程</div>
+        </div>
+    </section>
+</main>
+
+<script>
+const DEFAULT_COURSES = [{"code": "ZB1001001", "name": "國際金融情勢分析與展望", "teacher": "蘇建榮", "credits": "3", "category": "必修", "sessions": [{"date": "2026-08-31", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-16", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-23", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-30", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-07", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-14", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-28", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-04", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-11", "start": "08:00", "end": "17:00", "note": "", "cancelled": false}, {"date": "2026-11-18", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-25", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-12-02", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-12-09", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-12-16", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-12-23", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}]}, {"code": "ZB1007001", "name": "金融產學專題實作課程", "teacher": "許永明", "credits": "3", "category": "群修", "sessions": [{"date": "2026-09-16", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-30", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-07", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-07", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-11-07", "start": "13:30", "end": "16:30", "note": "", "cancelled": false}, {"date": "2026-11-14", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-11-14", "start": "13:30", "end": "16:30", "note": "", "cancelled": false}, {"date": "2026-11-21", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-11-21", "start": "13:30", "end": "16:30", "note": "", "cancelled": false}, {"date": "2026-12-05", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-12-05", "start": "13:30", "end": "16:30", "note": "", "cancelled": false}, {"date": "2026-12-12", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-12-12", "start": "13:30", "end": "16:30", "note": "", "cancelled": false}, {"date": "2026-12-19", "start": "08:00", "end": "17:00", "note": "", "cancelled": false}]}, {"code": "ZB1880001", "name": "國際銀行監管與法規基礎", "teacher": "Walter Yao、饒永華", "credits": "1", "category": "選修", "sessions": [{"date": "2026-10-06", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-13", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-17", "start": "13:30", "end": "16:30", "note": "", "cancelled": false}, {"date": "2026-10-20", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-27", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}]}, {"code": "ZB1881001", "name": "開放總體經濟分析", "teacher": "Alicia G. Herrero", "credits": "2", "category": "選修", "sessions": [{"date": "2026-10-09", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-10-09", "start": "13:00", "end": "17:00", "note": "", "cancelled": false}, {"date": "2026-11-20", "start": "14:00", "end": "17:30", "note": "", "cancelled": false}, {"date": "2026-11-20", "start": "18:20", "end": "22:00", "note": "", "cancelled": false}, {"date": "2026-11-27", "start": "14:00", "end": "17:30", "note": "", "cancelled": false}, {"date": "2026-11-27", "start": "18:20", "end": "22:00", "note": "", "cancelled": false}, {"date": "2026-12-04", "start": "18:20", "end": "22:00", "note": "", "cancelled": false}, {"date": "2026-12-11", "start": "18:20", "end": "22:00", "note": "", "cancelled": false}, {"date": "2026-12-18", "start": "18:20", "end": "22:00", "note": "", "cancelled": false}]}, {"code": "ZB1882001", "name": "家族企業治理", "teacher": "范博宏", "credits": "2", "category": "選修", "sessions": [{"date": "2026-11-02", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-08", "start": "08:30", "end": "12:20", "note": "", "cancelled": false}, {"date": "2026-11-09", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-13", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-15", "start": "08:30", "end": "12:30", "note": "", "cancelled": false}, {"date": "2026-11-16", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-20", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-22", "start": "08:30", "end": "12:30", "note": "", "cancelled": false}, {"date": "2026-11-23", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}]}, {"code": "ZB1883001", "name": "國際政治經濟情勢分析", "teacher": "Ketty W. Chen", "credits": "2", "category": "選修", "sessions": [{"date": "2026-09-15", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-29", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-27", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-03", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-10", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-17", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-24", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-30", "start": "18:30", "end": "21:30", "note": "週一", "cancelled": false}, {"date": "2026-12-14", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-12-15", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}]}, {"code": "ZB1886001", "name": "海外研習（倫敦LSE）", "teacher": "蘇建榮", "credits": "2", "category": "選修", "sessions": [{"date": "2026-08-12", "start": "18:30", "end": "20:30", "note": "", "cancelled": false}, {"date": "2026-09-05", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-09-06", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-09-07", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-09-08", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-09-09", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-09-10", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-09-11", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-09-12", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-09-13", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-09-21", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}]}, {"code": "ZB1887001", "name": "海外研習（倫敦Imperial）", "teacher": "許永明", "credits": "2", "category": "選修", "sessions": [{"date": "2026-07-27", "start": "18:30", "end": "20:30", "note": "", "cancelled": false}, {"date": "2026-08-22", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-08-23", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-08-24", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-08-25", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-08-26", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-08-27", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-08-28", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-08-29", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-08-30", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-09-11", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}]}, {"code": "ZB1898001", "name": "海外研習（新加坡）", "teacher": "許永明、蘇建榮", "credits": "2", "category": "選修", "sessions": [{"date": "2026-09-21", "start": "18:30", "end": "19:30", "note": "", "cancelled": false}, {"date": "2026-10-18", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-10-19", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-10-20", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-10-21", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-10-22", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-10-23", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-10-24", "start": "08:00", "end": "20:00", "note": "", "cancelled": false}, {"date": "2026-11-04", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}]}, {"code": "ZB1904001", "name": "另類投資與私募市場導論", "teacher": "林敬倫", "credits": "2", "category": "選修", "sessions": [{"date": "2026-09-19", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-09-21", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-12", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-17", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-10-19", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-24", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-11-09", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-14", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-11-16", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-21", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}]}, {"code": "ZB1905001", "name": "數位化與金融業的未來", "teacher": "Thomas Puschmann", "credits": "1", "category": "選修", "sessions": [{"date": "2026-11-12", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-13", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-14", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-11-14", "start": "13:30", "end": "16:30", "note": "", "cancelled": false}, {"date": "2026-11-15", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}]}, {"code": "ZB1906001", "name": "資產管理與租稅規劃", "teacher": "蘇建榮、陳明進", "credits": "2", "category": "選修", "sessions": [{"date": "2026-09-24", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-01", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-08", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-15", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-29", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-05", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-12", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-19", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-26", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-12-03", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}]}, {"code": "ZB1914011", "name": "永續金融與風險管理", "teacher": "吳中書", "credits": "2", "category": "選修", "sessions": [{"date": "2026-09-07", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-14", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-21", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-05", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-12", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-19", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-02", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-09", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-16", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-23", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}]}, {"code": "ZB1917001", "name": "向世界金融典範學習", "teacher": "Alan Hellawell、尚孝純", "credits": "2", "category": "選修", "sessions": [{"date": "2026-12-01", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-12-03", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-12-05", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-12-05", "start": "13:30", "end": "16:30", "note": "", "cancelled": false}, {"date": "2026-12-06", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-12-08", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-12-10", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-12-12", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-12-12", "start": "13:30", "end": "16:30", "note": "", "cancelled": false}, {"date": "2026-12-13", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}]}, {"code": "ZB1918001", "name": "ESG責任投資與資產配置", "teacher": "陳鴻毅、陳嬿如", "credits": "2", "category": "選修", "sessions": [{"date": "2026-09-08", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-15", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-22", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-29", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-06", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-13", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-27", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-10", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-17", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-24", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}]}, {"code": "ZB1919001", "name": "固定收益證券與信用市場", "teacher": "張明恩", "credits": "2", "category": "選修", "sessions": [{"date": "2026-12-17", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-12-19", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-12-19", "start": "13:30", "end": "16:30", "note": "", "cancelled": false}, {"date": "2026-12-20", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-12-21", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-12-22", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-12-26", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-12-26", "start": "13:30", "end": "16:30", "note": "", "cancelled": false}, {"date": "2026-12-27", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-12-28", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}]}, {"code": "ZB1930001", "name": "國際金融理論與實務", "teacher": "張元晨", "credits": "2", "category": "選修", "sessions": [{"date": "2026-09-05", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-09-12", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-10-03", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-10-17", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-10-31", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-11-07", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-11-14", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-11-21", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-12-05", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-12-12", "start": "09:00", "end": "12:00", "note": "", "cancelled": false}]}, {"code": "ZB1931001", "name": "領導力評鑑與發展", "teacher": "蔡維奇", "credits": "2", "category": "選修", "sessions": [{"date": "2026-08-16", "start": "10:00", "end": "12:00", "note": "", "cancelled": false}, {"date": "2026-09-12", "start": "13:00", "end": "18:00", "note": "", "cancelled": false}, {"date": "2026-10-31", "start": "13:00", "end": "18:00", "note": "", "cancelled": false}, {"date": "2026-11-07", "start": "13:00", "end": "18:00", "note": "", "cancelled": false}, {"date": "2026-12-07", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}]}, {"code": "ZB1932001", "name": "商用英文", "teacher": "林翰儀", "credits": "0", "category": "選修", "sessions": [{"date": "2026-08-11", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-08-14", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-08-21", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-08-25", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-08-28", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-01", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-04", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-08", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-11", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-15", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}]}, {"code": "ZB1941001", "name": "金融機構經營決策分析與管理", "teacher": "呂桔誠、林士貴", "credits": "2", "category": "選修", "sessions": [{"date": "2026-09-09", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-17", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-09-24", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-01", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-08", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-15", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-22", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-10-29", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-19", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}, {"date": "2026-11-26", "start": "18:30", "end": "21:30", "note": "", "cancelled": false}]}, {"code": "ZB1005001", "name": "金融與產業實務課程（一）", "teacher": "許永明", "credits": "3", "category": "選修", "sessions": []}, {"code": "ZB1006001", "name": "金融與產業實務課程（二）", "teacher": "許永明", "credits": "3", "category": "選修", "sessions": []}];
+let COURSES = [];
+try {
+    const savedCustom = JSON.parse(localStorage.getItem('cgbf_custom_courses_catalog') || 'null');
+    COURSES = (Array.isArray(savedCustom) && savedCustom.length > 0) ? savedCustom : JSON.parse(JSON.stringify(DEFAULT_COURSES));
+} catch (e) {
+    COURSES = JSON.parse(JSON.stringify(DEFAULT_COURSES));
+}
+
+const WEEKDAYS = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+const MY_DEFAULT_CODES = ["ZB1001001", "ZB1880001", "ZB1919001", "ZB1930001", "ZB1931001", "ZB1932001"];
+
+const urlParams = new URLSearchParams(window.location.search);
+let savedCodes = [];
+if (urlParams.get('codes')) {
+    savedCodes = urlParams.get('codes').split(',');
+} else {
+    try {
+        const local = JSON.parse(localStorage.getItem('cgbf_selected_codes') || 'null');
+        savedCodes = Array.isArray(local) ? local : MY_DEFAULT_CODES;
+    } catch (e) {
+        savedCodes = MY_DEFAULT_CODES;
+    }
+}
+const selectedSet = new Set(savedCodes);
+let currentIcsContent = '';
+let currentReportText = '';
+
+function getBadgeClass(cat) {
+    if (cat === '必修') return 'badge-req';
+    if (cat === '群修') return 'badge-grp';
+    return 'badge-ele';
+}
+
+function normalizeCourseName(name) {
+    return (name || '')
+        .replace(/英文授課/g, '')
+        .replace(/\s+/g, '')
+        .replace(/[（(].*?[)）]/g, '')
+        .trim();
+}
+
+function updateQrCode(codesArr) {
+    const qrBox = document.getElementById('qr-box');
+    const qrSection = document.getElementById('qr-section');
+    if (!qrBox) return;
+    if (!codesArr || codesArr.length === 0) {
+        qrBox.innerHTML = '<span style="font-size:12px;color:#64748b;text-align:center;">請先勾選課程</span>';
+        return;
+    }
+    const baseOrigin = window.location.origin.startsWith('http')
+        ? window.location.origin
+        : 'https://nccu-cgbf-calendar.netlify.app';
+    const icsUrl = `${baseOrigin}/.netlify/functions/ics?codes=${encodeURIComponent(codesArr.join(','))}`;
+    qrBox.innerHTML = '';
+    if (typeof QRCode !== 'undefined') {
+        new QRCode(qrBox, {
+            text: icsUrl,
+            width: 164,
+            height: 164,
+            colorDark: '#0f172a',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M
+        });
+    } else {
+        const img = document.createElement('img');
+        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=164x164&margin=4&data=${encodeURIComponent(icsUrl)}`;
+        img.alt = 'Course ICS QR Code';
+        img.width = 164;
+        img.height = 164;
+        qrBox.appendChild(img);
+    }
+}
+
+// 每次開啟網頁自動向政大選課系統即時確認最新課表日期與停課異動
+async function syncWithCourseSystem() {
+    const syncCard = document.getElementById('live-sync-card');
+    const syncText = document.getElementById('live-sync-text');
+    const annBox = document.getElementById('live-announcements');
+    const toggleAnnBtn = document.getElementById('btn-toggle-ann');
+
+    syncCard.classList.add('syncing');
+    syncText.textContent = '🔄 正在自動連線至政大國金選課系統（selectcourse.cgbf.nccu.edu.tw）確認最新課表與停課異動...';
+
+    try {
+        const res = await fetch('/.netlify/functions/live-schedule', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || '無法讀取選課系統');
+
+        const liveSchedules = data.courseSchedules || {};
+
+        COURSES.forEach(course => {
+            const norm = normalizeCourseName(course.name);
+            const liveDates = liveSchedules[norm];
+            if (!liveDates || !Array.isArray(liveDates)) return;
+
+            const defaultStart = course.sessions.length > 0 ? course.sessions[0].start : '18:30';
+            const defaultEnd = course.sessions.length > 0 ? course.sessions[0].end : '21:30';
+            const defaultYear = course.sessions.length > 0 ? course.sessions[0].date.slice(0, 4) : '2026';
+
+            liveDates.forEach(ld => {
+                const mm = String(ld.month).padStart(2, '0');
+                const dd = String(ld.day).padStart(2, '0');
+                const suffixMd = `-${mm}-${dd}`;
+                const matched = course.sessions.filter(s => s.date.endsWith(suffixMd));
+
+                if (matched.length > 0) {
+                    matched.forEach(s => {
+                        if (ld.cancelled && !s.cancelled) {
+                            s.cancelled = true;
+                        }
+                        if (ld.note && s.note !== ld.note) {
+                            s.note = ld.note;
+                        }
+                    });
+                } else if (!ld.cancelled) {
+                    course.sessions.push({
+                        date: `${defaultYear}-${mm}-${dd}`,
+                        start: defaultStart,
+                        end: defaultEnd,
+                        note: ld.note || '公告新增/異動',
+                        cancelled: false
+                    });
+                    course.sessions.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+                }
+            });
+        });
+
+        const t = new Date(data.checkedAt || Date.now());
+        const timeStr = t.toLocaleTimeString('zh-TW', { hour12: false });
+        syncCard.classList.remove('syncing');
+        syncText.innerHTML = `🟢 <strong>已即時連線政大選課系統確認最新課表</strong>（確認時間：${timeStr} ｜ 已核對 ${data.courseCountInAnnouncement || 16} 門課程最新日期與停課公告）`;
+
+        if (Array.isArray(data.changeAnnouncements) && data.changeAnnouncements.length > 0) {
+            toggleAnnBtn.style.display = 'inline-block';
+            annBox.innerHTML = '<strong>📢 選課系統最新課程異動公告：</strong><br>' +
+                data.changeAnnouncements.map(a => `• ${a}`).join('<br>');
+        }
+
+        renderCourseList(document.getElementById('search-input').value);
+        saveAndRefresh();
+    } catch (err) {
+        syncCard.classList.remove('syncing');
+        syncText.innerHTML = `🟢 已載入內建 115-1 最新完整課表（共 ${COURSES.length} 門課）`;
+    }
+}
+
+document.getElementById('btn-toggle-ann').addEventListener('click', () => {
+    document.getElementById('live-announcements').classList.toggle('show');
+});
+
+document.getElementById('btn-live-sync').addEventListener('click', () => {
+    syncWithCourseSystem();
+});
+
+document.getElementById('btn-toggle-qr').addEventListener('click', () => {
+    const sec = document.getElementById('qr-section');
+    sec.classList.toggle('open');
+    if (sec.classList.contains('open')) {
+        sec.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+});
+
+// 支援直接解析新學期貼上的 HTML 或純文字 (Ctrl+A 複製的文字)
+function parseCoursesFromInput(rawInput) {
+    const text = rawInput.trim();
+    if (!text) return [];
+    const results = [];
+
+    if (text.includes('<div') && text.includes('course-item')) {
+        const doc = new DOMParser().parseFromString(text, 'text/html');
+        doc.querySelectorAll('.course-item').forEach(div => {
+            const fields = {};
+            div.querySelectorAll('label.tt').forEach(lbl => {
+                const key = lbl.textContent.trim();
+                const p = lbl.parentElement.querySelector('p');
+                if (p) {
+                    const clone = p.cloneNode(true);
+                    const badge = clone.querySelector('.badge');
+                    if (badge && key === '科目名稱') badge.remove();
+                    fields[key] = clone.textContent.trim();
+                }
+            });
+            const code = fields['科目代碼'] || '';
+            const name = fields['科目名稱'] || '';
+            if (!code && !name) return;
+            const sessions = [];
+            div.querySelectorAll('ul.ul-timetable li').forEach(li => {
+                const m = li.textContent.trim().match(/(\d{4})-(\d{2})-(\d{2})(?:\([^)]*\))?\s*(\d{1,2}:\d{2})\s*[~～\-－—至]\s*(\d{1,2}:\d{2})/);
+                if (m) {
+                    sessions.push({
+                        date: `${m[1]}-${m[2]}-${m[3]}`,
+                        start: m[4].padStart(5, '0'),
+                        end: m[5].padStart(5, '0'),
+                        note: '',
+                        cancelled: false
+                    });
+                }
+            });
+            results.push({
+                code,
+                name,
+                teacher: fields['授課教師'] || '',
+                credits: fields['學分數'] || '0',
+                category: fields['課程類別'] || '選修',
+                sessions
+            });
+        });
+        if (results.length > 0) return results;
+    }
+
+    const blocks = text.split(/(?=課程類別)/);
+    blocks.forEach(blk => {
+        const codeMatch = blk.match(/科目代碼\s*([A-Z0-9]+)/);
+        const nameMatch = blk.match(/科目名稱\s*([^\r\n]+?)(?:\s*英文授課|\s*授課教師|$)/);
+        if (!codeMatch && !nameMatch) return;
+        const catMatch = blk.match(/課程類別\s*(必修|選修|群修)/);
+        const credMatch = blk.match(/學分數\s*(\d+)/);
+        const teacherMatch = blk.match(/授課教師\s*([^\r\n]+?)(?:\s*教學大綱|\s*上課時間|$)/);
+        const sessions = [];
+        const timeRegex = /(\d{4})-(\d{2})-(\d{2})(?:\([^)]*\))?\s*(\d{1,2}:\d{2})\s*[~～\-－—至]\s*(\d{1,2}:\d{2})/g;
+        let m;
+        while ((m = timeRegex.exec(blk)) !== null) {
+            sessions.push({
+                date: `${m[1]}-${m[2]}-${m[3]}`,
+                start: m[4].padStart(5, '0'),
+                end: m[5].padStart(5, '0'),
+                note: '',
+                cancelled: false
+            });
+        }
+        results.push({
+            code: codeMatch ? codeMatch[1].trim() : '',
+            name: nameMatch ? nameMatch[1].replace(/英文授課/g, '').trim() : '',
+            teacher: teacherMatch ? teacherMatch[1].trim() : '',
+            credits: credMatch ? credMatch[1].trim() : '0',
+            category: catMatch ? catMatch[1].trim() : '選修',
+            sessions
+        });
+    });
+    return results;
+}
+
+function parseEnrollmentsCodesFromInput(rawInput) {
+    const codes = [];
+    const regex = /\b(ZB\d{6,8})\b/g;
+    let m;
+    while ((m = regex.exec(rawInput)) !== null) {
+        codes.push(m[1]);
+    }
+    return codes;
+}
+
+function renderCourseList(filterKw = '') {
+    const listEl = document.getElementById('course-list');
+    document.getElementById('course-total-badge').textContent = `共 ${COURSES.length} 門課`;
+    const kw = filterKw.trim().toLowerCase();
+    listEl.innerHTML = '';
+
+    COURSES.forEach(c => {
+        if (kw && !(`${c.code} ${c.name} ${c.teacher} ${c.category}`).toLowerCase().includes(kw)) {
+            return;
+        }
+        const isChecked = selectedSet.has(c.code);
+        const activeCount = c.sessions.filter(s => !s.cancelled).length;
+        const card = document.createElement('label');
+        card.className = 'course-card' + (isChecked ? ' selected' : '');
+        card.innerHTML = `
+            <input type="checkbox" value="${c.code}" ${isChecked ? 'checked' : ''}>
+            <div class="course-info">
+                <div class="course-title-row">
+                    <span class="badge ${getBadgeClass(c.category)}">${c.category} · ${c.credits}學分</span>
+                    <span class="course-name">${c.name}</span>
+                    <span class="badge badge-cnt">${activeCount > 0 ? activeCount + ' 堂' : '無固定時間'}</span>
+                </div>
+                <div class="course-meta">代碼：${c.code} ｜ 授課教師：${c.teacher}</div>
+            </div>
+        `;
+        const checkbox = card.querySelector('input');
+        checkbox.addEventListener('change', () => {
+            if (checkbox.checked) {
+                selectedSet.add(c.code);
+                card.classList.add('selected');
+            } else {
+                selectedSet.delete(c.code);
+                card.classList.remove('selected');
+            }
+            saveAndRefresh();
+        });
+        listEl.appendChild(card);
+    });
+}
+
+function saveAndRefresh() {
+    const arr = Array.from(selectedSet);
+    try {
+        localStorage.setItem('cgbf_selected_codes', JSON.stringify(arr));
+    } catch (e) {}
+
+    const chosenCourses = COURSES.filter(c => selectedSet.has(c.code));
+    const totalCredits = chosenCourses.reduce((sum, c) => sum + (parseInt(c.credits, 10) || 0), 0);
+
+    updateQrCode(chosenCourses.map(c => c.code));
+
+    const nowUtc = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const icsLines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//NCCU CGBF Course Calendar Web//ZH-TW',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        'X-WR-CALNAME:政大國際金融學院課表',
+        'X-WR-TIMEZONE:Asia/Taipei',
+        'BEGIN:VTIMEZONE',
+        'TZID:Asia/Taipei',
+        'BEGIN:STANDARD',
+        'TZOFFSETFROM:+0800',
+        'TZOFFSETTO:+0800',
+        'TZNAME:CST',
+        'DTSTART:19700101T000000',
+        'END:STANDARD',
+        'END:VTIMEZONE'
+    ];
+
+    const allChrono = [];
+    let report = `🎓 【個人選修課程與上課時間總表】（共選修 ${chosenCourses.length} 門課 / ${totalCredits} 學分）\n`;
+    report += `========================================================================\n`;
+
+    chosenCourses.forEach((c, idx) => {
+        const active = c.sessions.filter(s => !s.cancelled);
+        const cancelledList = c.sessions.filter(s => s.cancelled);
+        report += `\n📘 ${idx + 1}. [${c.code}] ${c.name} (${c.category} ${c.credits}學分 | 👨‍🏫 教師：${c.teacher})\n`;
+        if (active.length === 0) {
+            report += `   ⚠️ 系統顯示無固定上課時間\n`;
+            return;
+        }
+        report += `   ✅ 上課時間（共 ${active.length} 堂）：\n`;
+        active.forEach((s, sIdx) => {
+            const [yr, mo, dy] = s.date.split('-').map(Number);
+            const wd = WEEKDAYS[new Date(yr, mo - 1, dy).getDay()];
+            const noteStr = s.note ? ` (${s.note})` : '';
+            report += `      (${String(sIdx + 1).padStart(2, ' ')}) ${s.date} (${wd}) ${s.start}～${s.end}${noteStr}\n`;
+            allChrono.push({
+                date: s.date,
+                yr, mo, dy, wd,
+                start: s.start,
+                end: s.end,
+                note: s.note,
+                courseName: c.name,
+                code: c.code
+            });
+
+            const dtStart = `${s.date.replace(/-/g, '')}T${s.start.replace(':', '')}00`;
+            const dtEnd = `${s.date.replace(/-/g, '')}T${s.end.replace(':', '')}00`;
+            const summary = s.note ? `${c.name} (${s.note})` : c.name;
+            const desc = `科目代碼：${c.code}\\n課程名稱：${c.name} (${c.category} / ${c.credits}學分)\\n授課教師：${c.teacher}\\n堂次：第 ${sIdx + 1}/${active.length} 堂`;
+            icsLines.push(
+                'BEGIN:VEVENT',
+                `UID:${c.code}-${dtStart}@cgbf.nccu.edu.tw`,
+                `DTSTAMP:${nowUtc}`,
+                `DTSTART;TZID=Asia/Taipei:${dtStart}`,
+                `DTEND;TZID=Asia/Taipei:${{dtEnd}}`.replace('{dtEnd}', dtEnd),
+                `SUMMARY:${summary}`,
+                `DESCRIPTION:${desc}`,
+                'END:VEVENT'
+            );
+        });
+        if (cancelledList.length > 0) {
+            const cStr = cancelledList.map(s => `${s.date}${s.note ? '(' + s.note + ')' : ''}`).join('、');
+            report += `   ❌ 公告停課/取消：${cStr}\n`;
+        }
+    });
+
+    icsLines.push('END:VCALENDAR');
+    currentIcsContent = icsLines.join('\r\n') + '\r\n';
+
+    allChrono.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+    report += `\n------------------------------------------------------------------------\n`;
+    report += `🗓️ 【依日期先後排序的上課行事曆清單】（共 ${allChrono.length} 堂課）\n`;
+    report += `------------------------------------------------------------------------\n`;
+
+    let curMonth = '';
+    allChrono.forEach(item => {
+        const ym = `${item.yr}年${String(item.mo).padStart(2, '0')}月`;
+        if (ym !== curMonth) {
+            curMonth = ym;
+            report += `\n【${ym}】\n`;
+        }
+        const noteStr = item.note ? ` (${item.note})` : '';
+        report += `  • ${item.date} (${item.wd}) ${item.start}～${item.end}  |  ${item.courseName}${noteStr}\n`;
+    });
+
+    currentReportText = report;
+
+    document.getElementById('stats-bar').innerHTML = `
+        <span>已選課程：${chosenCourses.length} 門（${totalCredits} 學分）</span>
+        <span>總上課堂數：${allChrono.length} 堂</span>
+    `;
+
+    const previewBox = document.getElementById('preview-box');
+    const dlBtn = document.getElementById('btn-download-ics');
+    const qrBtn = document.getElementById('btn-toggle-qr');
+    const copyBtn = document.getElementById('btn-copy-text');
+
+    if (chosenCourses.length === 0) {
+        previewBox.innerHTML = `<div class="empty-hint">👈 請先在左側勾選您這學期修習的課程</div>`;
+        dlBtn.disabled = true;
+        qrBtn.disabled = true;
+        copyBtn.disabled = true;
+    } else {
+        const pre = document.createElement('pre');
+        pre.textContent = report;
+        previewBox.innerHTML = '';
+        previewBox.appendChild(pre);
+        dlBtn.disabled = false;
+        qrBtn.disabled = false;
+        copyBtn.disabled = false;
+    }
+}
+
+document.getElementById('btn-toggle-import').addEventListener('click', () => {
+    document.getElementById('import-drawer').classList.toggle('open');
+});
+
+document.getElementById('btn-parse-custom').addEventListener('click', () => {
+    const coursesInput = document.getElementById('paste-courses').value;
+    const enrollInput = document.getElementById('paste-enrollments').value;
+    const statusEl = document.getElementById('import-status');
+
+    let msgParts = [];
+    if (coursesInput.trim()) {
+        const parsed = parseCoursesFromInput(coursesInput);
+        if (parsed.length > 0) {
+            COURSES = parsed;
+            try {
+                localStorage.setItem('cgbf_custom_courses_catalog', JSON.stringify(COURSES));
+            } catch (e) {}
+            msgParts.push(`✅ 成功匯入 ${parsed.length} 門新學期課程！`);
+        } else {
+            alert('⚠️ 未能從欄位①解析出課程資料，請確認您在選課系統「課程資料 (/courses)」頁面按了 Ctrl+A 全選複製（或貼上網頁原始碼）。');
+            return;
+        }
+    }
+
+    if (enrollInput.trim()) {
+        const codes = parseEnrollmentsCodesFromInput(enrollInput);
+        if (codes.length > 0) {
+            selectedSet.clear();
+            codes.forEach(c => selectedSet.add(c));
+            msgParts.push(`✅ 自動勾選了 ${codes.length} 門您的已選課程！`);
+        }
+    }
+
+    statusEl.textContent = msgParts.join(' ');
+    renderCourseList(document.getElementById('search-input').value);
+    saveAndRefresh();
+});
+
+document.getElementById('btn-reset-default').addEventListener('click', () => {
+    COURSES = JSON.parse(JSON.stringify(DEFAULT_COURSES));
+    try {
+        localStorage.removeItem('cgbf_custom_courses_catalog');
+    } catch (e) {}
+    document.getElementById('import-status').textContent = '✅ 已還原為 115-1 預設課程資料';
+    renderCourseList(document.getElementById('search-input').value);
+    saveAndRefresh();
+    syncWithCourseSystem();
+});
+
+document.getElementById('search-input').addEventListener('input', e => {
+    renderCourseList(e.target.value);
+});
+
+document.getElementById('btn-preset-my').addEventListener('click', () => {
+    selectedSet.clear();
+    MY_DEFAULT_CODES.forEach(code => selectedSet.add(code));
+    renderCourseList(document.getElementById('search-input').value);
+    saveAndRefresh();
+});
+
+document.getElementById('btn-clear').addEventListener('click', () => {
+    selectedSet.clear();
+    renderCourseList(document.getElementById('search-input').value);
+    saveAndRefresh();
+});
+
+document.getElementById('btn-download-ics').addEventListener('click', () => {
+    const blob = new Blob([currentIcsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'nccu_cgbf_courses.ics';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+});
+
+document.getElementById('btn-copy-text').addEventListener('click', function() {
+    navigator.clipboard.writeText(currentReportText);
+    const orig = this.innerHTML;
+    this.innerHTML = '✅ 已複製！';
+    setTimeout(() => { this.innerHTML = orig; }, 2000);
+});
+
+renderCourseList();
+saveAndRefresh();
+syncWithCourseSystem();
+</script>
+</body>
+</html>
